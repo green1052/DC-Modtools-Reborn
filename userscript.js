@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DC-Modtools
 // @namespace    http://tampermonkey.net/
-// @version      3.1.17
+// @version      3.1.20
 // @description  갤관리에 필요한 각종기능 모음
 // @author       ZENITH(int64)
 // @noframes     true
@@ -314,6 +314,174 @@ function copystring(str) {
     document.execCommand('copy');
     textArea.remove();
 }
+/*
+function createHashImageBlobURL(value, outW, outH) {
+    const str = (value === null) ? "null" : String(value);
+
+    const w = normalizeSize(outW, 18);
+    const h = normalizeSize(outH, 18);
+
+    if (!createHashImageBlobURL._cache) createHashImageBlobURL._cache = new Map();
+    const cache = createHashImageBlobURL._cache;
+
+    const key = str + "\u0000" + w + "x" + h;
+    const cached = cache.get(key);
+    if (cached && typeof cached.url === "string") return cached.url;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) throw new Error("Canvas 2D context is not available.");
+
+    ctx.imageSmoothingEnabled = false;
+
+    const seed = fnv1a32(str);
+    const rng = xorshift32(seed || 1);
+
+    const hue = seed % 360;
+    const fg = `hsl(${hue}, 65%, 45%)`;
+    const bg = `hsl(${hue}, 25%, 92%)`;
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const grid = 5;
+    const xs = makeBounds(w, grid);
+    const ys = makeBounds(h, grid);
+
+    let filledCount = 0;
+
+    ctx.fillStyle = fg;
+    for (let gy = 0; gy < grid; gy++) {
+        for (let gx = 0; gx < Math.ceil(grid / 2); gx++) {
+            const r = rng.next();
+            const on = (r & 1) === 1;
+
+            if (!on) continue;
+
+            const mx = grid - 1 - gx;
+            fillCell(ctx, xs[gx], xs[gx + 1], ys[gy], ys[gy + 1]);
+            filledCount++;
+
+            if (mx !== gx) {
+                fillCell(ctx, xs[mx], xs[mx + 1], ys[gy], ys[gy + 1]);
+                filledCount++;
+            }
+        }
+    }
+
+    if (filledCount === 0) {
+        const fx = (seed >>> 0) % grid;
+        const fy = ((seed >>> 8) >>> 0) % grid;
+        const mx = grid - 1 - fx;
+        ctx.fillStyle = fg;
+        fillCell(ctx, xs[fx], xs[fx + 1], ys[fy], ys[fy + 1]);
+        if (mx !== fx) fillCell(ctx, xs[mx], xs[mx + 1], ys[fy], ys[fy + 1]);
+    }
+
+    const dataURL = canvas.toDataURL("image/png");
+    const blob = dataURLToBlob(dataURL);
+    const url = URL.createObjectURL(blob);
+
+    cache.set(key, { url });
+    const MAX = 512;
+    if (cache.size > MAX) {
+        const firstKey = cache.keys().next().value;
+        const first = cache.get(firstKey);
+        if (first && first.url) URL.revokeObjectURL(first.url);
+        cache.delete(firstKey);
+    }
+
+    return url;
+
+    function normalizeSize(v, def) {
+        if (v === undefined || v === null) return def;
+        const n = Number(v);
+        if (!Number.isFinite(n)) return def;
+        const i = Math.floor(n);
+        return i > 0 ? i : def;
+    }
+
+    function makeBounds(total, parts) {
+        const b = new Array(parts + 1);
+        for (let i = 0; i <= parts; i++) b[i] = Math.round((i * total) / parts);
+        b[parts] = total;
+        return b;
+    }
+
+    function fillCell(context, x0, x1, y0, y1) {
+        const w = Math.max(0, x1 - x0);
+        const h = Math.max(0, y1 - y0);
+        if (w && h) context.fillRect(x0, y0, w, h);
+    }
+
+    function fnv1a32(s) {
+        let h = 0x811c9dc5;
+        if (typeof TextEncoder !== "undefined") {
+            const bytes = new TextEncoder().encode(s);
+            for (let i = 0; i < bytes.length; i++) {
+                h ^= bytes[i];
+                h = Math.imul(h, 0x01000193);
+            }
+        } else {
+            for (let i = 0; i < s.length; i++) {
+                const c = s.charCodeAt(i);
+                h ^= (c & 0xff);
+                h = Math.imul(h, 0x01000193);
+                h ^= ((c >>> 8) & 0xff);
+                h = Math.imul(h, 0x01000193);
+            }
+        }
+        return (h >>> 0);
+    }
+
+    function xorshift32(seed) {
+        let x = seed >>> 0;
+        return {
+            next() {
+                x ^= (x << 13) >>> 0;
+                x ^= (x >>> 17) >>> 0;
+                x ^= (x << 5) >>> 0;
+                return (x >>> 0);
+            }
+        };
+    }
+
+    function dataURLToBlob(url) {
+        const comma = url.indexOf(",");
+        const meta = url.slice(0, comma);
+        const data = url.slice(comma + 1);
+
+        const m = /^data:([^;]+)(;base64)?$/i.exec(meta);
+        const mime = (m && m[1]) ? m[1] : "application/octet-stream";
+        const isBase64 = !!(m && m[2]);
+
+        if (isBase64) {
+            const bin = atob(data);
+            const len = bin.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+            return new Blob([bytes], { type: mime });
+        } else {
+            return new Blob([decodeURIComponent(data)], { type: mime });
+        }
+    }
+}
+Array.from(document.querySelectorAll("a.mention")).map(function(node) {
+    if (node.textContent == "@ㅇㅇ") {
+        let cno = node.getAttribute("href").split("(")[1].split(")")[0];
+        var gall_id = $(document).data('gallery_id') || getURLParameter("id");
+        var cmt_wrapper = (gall_id == 'dcbest' && $('.copy_'+ cno).length > 0)?$('.copy_'+ cno) : $('#reply_li_'+ cno);
+        if (cmt_wrapper.length !== 0) {
+            let uid = cmt_wrapper[0].querySelector("span.gall_writer").getAttribute("data-uid");
+            if (uid != null) node.innerHTML = `<img src="${createHashImageBlobURL()}"></img>ㅇㅇ`;
+        }
+    }
+});
+*/
+
 async function doPullList() {
     let resp = await gmRequestPromise({
         method:     "GET",
@@ -384,9 +552,9 @@ async function setMobileIP(ktlgskStr) {
         case 'clr':
             setIPban(mobile_ips.clr);
             break;
-        //case '5Gban':
-        //    setIPban(mobile_ips.unblocked);
-        //    break;
+            //case '5Gban':
+            //    setIPban(mobile_ips.unblocked);
+            //    break;
     }
 }
 function urlMatch(str, perfectmatch) {
@@ -534,6 +702,7 @@ if (SETTING_VAR == undefined) {
     SETTING_VAR["popupIpBan"] = false;
     SETTING_VAR["useGlobalMemo"] = false;
     SETTING_VAR["useImgIDDecryptor"] = true;
+    SETTING_VAR["useLinkChecker"] = true;
     await GM.setValue('SETTING', SETTING_VAR);
 }
 
@@ -553,6 +722,7 @@ await settingundefchecker("disableWriterInfo", false);
 await settingundefchecker("popupIpBan", false);
 await settingundefchecker("useGlobalMemo", false);
 await settingundefchecker("useImgIDDecryptor", true);
+await settingundefchecker("useLinkChecker", true);
 
 //dcinside 04xx 30->31d fix
 if (SETTING_VAR["rBanHour"] == 720) {
@@ -567,7 +737,432 @@ if (SETTING_VAR["autoblockAIpostHour"] == 720) {
     SETTING_VAR["autoblockAIpostHour"] == 744;
     await GM.setValue('SETTING', SETTING_VAR);
 }
-//
+
+const guard = createFakeLinkGuard();
+const guard_target = document.querySelector("div.write_div");
+if (guard_target != null && SETTING_VAR["useLinkChecker"] === true) {
+    guard.patch(guard_target);
+    new MutationObserver(m => guard.patch(guard_target)).observe(guard_target, {subtree:true, childList:true});
+}
+function createFakeLinkGuard(userOptions = {}) {
+    const DEFAULTS = {
+        urlLikeRegex:
+        /\b((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d{2,5})?(?:\/[^\s<>"']*)?)\b/i,
+
+        allowedProtocols: new Set(["http:", "https:"]),
+        patchOnlyWhenTextLooksLikeUrl: false,
+
+        strings: {
+            title: "링크 경고",
+            desc: "표시된 주소와 실제 이동 주소가 다릅니다. 정말로 이동하시겠습니까?",
+            shown: "표시",
+            actual: "실제",
+            cancel: "취소",
+            confirm: "이동하기",
+        },
+
+        zIndex: 2147483647,
+        navigation: "auto",
+    };
+
+    const opts = mergeDeep(structuredClone(DEFAULTS), userOptions);
+    const patched = new WeakMap();
+    const injected = { style: false, modal: false };
+    let modalState = null;
+
+    function patch(rootEl) {
+        if (!(rootEl instanceof Element)) {
+            throw new TypeError("FakeLinkGuard.patch(rootEl): rootEl must be an Element.");
+        }
+
+        ensureUI();
+
+        const anchors = collectAnchors(rootEl);
+        for (const a of anchors) {
+            if (isPatchedByUs(a)) continue;
+
+            const decision = shouldPatchAnchor(a);
+            if (!decision) continue;
+
+            applyPatch(a, decision);
+        }
+    }
+
+    function isPatchedByUs(anchor) {
+        return patched.has(anchor);
+    }
+
+    function collectAnchors(rootEl) {
+        const list = [];
+        if (rootEl.tagName === "A") list.push(rootEl);
+        const found = rootEl.querySelectorAll("a");
+        for (const a of found) list.push(a);
+
+        return list;
+    }
+
+    function shouldPatchAnchor(a) {
+        const rawHrefAttr = a.getAttribute("href");
+        if (!rawHrefAttr) return null;
+        let actualUrl;
+        try {
+            actualUrl = new URL(a.href, window.location.href);
+        } catch {
+            return null;
+        }
+
+        if (!opts.allowedProtocols.has(actualUrl.protocol)) return null;
+        if (actualUrl.origin === window.location.origin && actualUrl.pathname === window.location.pathname) {
+            const hrefTrim = String(rawHrefAttr).trim();
+            if (hrefTrim.startsWith("#")) return null;
+        }
+
+        const text = (a.textContent ?? "").trim();
+        if (!text) return null;
+
+        const shownUrlCandidate = extractUrlFromText(text);
+
+        if (opts.patchOnlyWhenTextLooksLikeUrl) {
+            if (!shownUrlCandidate) return null;
+        }
+
+        const normalizedActual = normalizeUrl(actualUrl);
+        const normalizedShown = shownUrlCandidate ? normalizeUrl(parseUrlLenient(shownUrlCandidate)) : null;
+
+        let effectiveShown = normalizedShown;
+        if (!effectiveShown && !opts.patchOnlyWhenTextLooksLikeUrl) {
+            const parsed = parseUrlLenient(text);
+            if (parsed) effectiveShown = normalizeUrl(parsed);
+        }
+
+        if (!effectiveShown) return null;
+        if (effectiveShown === normalizedActual) return null;
+
+        return {
+            actualUrl: actualUrl.toString(),
+            shownUrl: effectiveShown,
+            originalHrefAttr: rawHrefAttr,
+        };
+    }
+
+    function extractUrlFromText(text) {
+        const m = text.match(opts.urlLikeRegex);
+        if (!m) return null;
+        return m[1];
+    }
+
+    function parseUrlLenient(s) {
+        try {
+            const t = String(s).trim();
+            if (!t) return null;
+            const withProto = /^[a-z]+:\/\//i.test(t) ? t : `https://${t}`;
+            const u = new URL(withProto);
+            if (!u.hostname) return null;
+            return u;
+        } catch {
+            return null;
+        }
+    }
+
+    function normalizeUrl(u) {
+        const url = u instanceof URL ? new URL(u.toString()) : new URL(String(u));
+        url.hostname = url.hostname.toLowerCase();
+
+        if ((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) {
+            url.port = "";
+        }
+
+        if (url.pathname.length > 1) {
+            url.pathname = url.pathname.replace(/\/+$/, "");
+        }
+        return url.toString();
+    }
+
+    function applyPatch(a, info) {
+        const original = {
+            hrefAttr: a.getAttribute("href"),
+            targetAttr: a.getAttribute("target"),
+            relAttr: a.getAttribute("rel"),
+            onclickAttr: a.getAttribute("onclick"),
+            tabIndex: a.getAttribute("tabindex"),
+            role: a.getAttribute("role"),
+            ariaLabel: a.getAttribute("aria-label"),
+        };
+
+        a.removeAttribute("href");
+        if (!a.hasAttribute("tabindex")) a.setAttribute("tabindex", "0");
+        if (!a.hasAttribute("role")) a.setAttribute("role", "link");
+        a.style.cursor = a.style.cursor || "pointer";
+        const onClick = (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (typeof ev.stopImmediatePropagation === "function") ev.stopImmediatePropagation();
+
+            openConfirmModal(info.shownUrl, info.actualUrl).then((ok) => {
+                if (!ok) return;
+                navigate(info.actualUrl, a);
+            });
+        };
+
+        const onKeyDown = (ev) => {
+            const k = ev.key;
+            if (k !== "Enter" && k !== " ") return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (typeof ev.stopImmediatePropagation === "function") ev.stopImmediatePropagation();
+
+            openConfirmModal(info.shownUrl, info.actualUrl).then((ok) => {
+                if (!ok) return;
+                navigate(info.actualUrl, a);
+            });
+        };
+
+        a.addEventListener("click", onClick, true);
+        a.addEventListener("keydown", onKeyDown, true);
+        a.setAttribute("data-fake-link-guard", "1");
+
+        patched.set(a, {
+            actualUrl: info.actualUrl,
+            shownUrl: info.shownUrl,
+            handlers: { onClick, onKeyDown },
+            originalAttrs: original,
+        });
+    }
+
+    function navigate(url, anchor) {
+        const mode = opts.navigation;
+        if (mode === "new-tab") {
+            window.open(url, "_blank", "noopener,noreferrer");
+            return;
+        }
+        if (mode === "same-tab") {
+            window.location.assign(url);
+            return;
+        }
+
+        const target = anchor.getAttribute("target");
+        if (target && target !== "_self") {
+            window.open(url, target, "noopener,noreferrer");
+            return;
+        }
+        window.location.assign(url);
+    }
+
+    function ensureUI() {
+        if (!injected.style) injectStyle();
+        if (!injected.modal) createModalShell();
+    }
+
+    function injectStyle() {
+        const style = document.createElement("style");
+        style.id = "fake-link-guard-style";
+        style.textContent = `
+#flg-backdrop {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.45);
+  z-index: ${opts.zIndex};
+}
+#flg-modal {
+  width: min(560px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.25);
+  padding: 16px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+#flg-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+}
+#flg-desc {
+  font-size: 13px;
+  margin: 0 0 12px 0;
+  color: rgba(0,0,0,0.75);
+  line-height: 1.35;
+}
+.flg-row {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+.flg-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(0,0,0,0.75);
+}
+.flg-value {
+  font-size: 12px;
+  color: rgba(0,0,0,0.9);
+  word-break: break-all;
+}
+#flg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  padding-top: 12px;
+}
+.flg-btn {
+  appearance: none;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: #fff;
+  color: rgba(0,0,0,0.85);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.flg-btn.primary {
+  border-color: rgba(0,0,0,0.25);
+  font-weight: 700;
+}
+.flg-btn:focus {
+  outline: 2px solid rgba(0,0,0,0.25);
+  outline-offset: 2px;
+}
+    `.trim();
+        document.head.appendChild(style);
+        injected.style = true;
+    }
+
+    function createModalShell() {
+        const backdrop = document.createElement("div");
+        backdrop.id = "flg-backdrop";
+
+        const modal = document.createElement("div");
+        modal.id = "flg-modal";
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+
+        const title = document.createElement("h3");
+        title.id = "flg-title";
+        title.textContent = opts.strings.title;
+
+        const desc = document.createElement("p");
+        desc.id = "flg-desc";
+        desc.textContent = opts.strings.desc;
+
+        const rowShown = document.createElement("div");
+        rowShown.className = "flg-row";
+        const shownLabel = document.createElement("div");
+        shownLabel.className = "flg-label";
+        shownLabel.textContent = opts.strings.shown;
+        const shownValue = document.createElement("div");
+        shownValue.className = "flg-value";
+        shownValue.id = "flg-shown";
+        rowShown.appendChild(shownLabel);
+        rowShown.appendChild(shownValue);
+
+        const rowActual = document.createElement("div");
+        rowActual.className = "flg-row";
+        const actualLabel = document.createElement("div");
+        actualLabel.className = "flg-label";
+        actualLabel.textContent = opts.strings.actual;
+        const actualValue = document.createElement("div");
+        actualValue.className = "flg-value";
+        actualValue.id = "flg-actual";
+        rowActual.appendChild(actualLabel);
+        rowActual.appendChild(actualValue);
+
+        const actions = document.createElement("div");
+        actions.id = "flg-actions";
+
+        const btnCancel = document.createElement("button");
+        btnCancel.className = "flg-btn";
+        btnCancel.type = "button";
+        btnCancel.textContent = opts.strings.cancel;
+
+        const btnOk = document.createElement("button");
+        btnOk.className = "flg-btn primary";
+        btnOk.type = "button";
+        btnOk.textContent = opts.strings.confirm;
+
+        actions.appendChild(btnCancel);
+        actions.appendChild(btnOk);
+
+        modal.appendChild(title);
+        modal.appendChild(desc);
+        modal.appendChild(rowShown);
+        modal.appendChild(rowActual);
+        modal.appendChild(actions);
+
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+        const onKey = (ev) => {
+            if (ev.key !== "Escape") return;
+            if (!modalState) return;
+            ev.preventDefault();
+            closeModal(false);
+        };
+
+        btnCancel.addEventListener("click", () => closeModal(false), true);
+        btnOk.addEventListener("click", () => closeModal(true), true);
+        document.addEventListener("keydown", onKey, true);
+
+        injected.modal = true;
+    }
+
+    function openConfirmModal(shownUrl, actualUrl) {
+        ensureUI();
+        if (modalState) closeModal(false);
+
+        const backdrop = document.getElementById("flg-backdrop");
+        const shownEl = document.getElementById("flg-shown");
+        const actualEl = document.getElementById("flg-actual");
+
+        shownEl.textContent = String(shownUrl);
+        actualEl.textContent = String(actualUrl);
+
+        backdrop.style.display = "flex";
+        const okBtn = backdrop.querySelector("#flg-actions .primary");
+        okBtn && okBtn.focus();
+
+        return new Promise((resolve) => {
+            modalState = { resolve };
+        });
+    }
+
+    function closeModal(result) {
+        const backdrop = document.getElementById("flg-backdrop");
+        if (backdrop) backdrop.style.display = "none";
+        const st = modalState;
+        modalState = null;
+        if (st && typeof st.resolve === "function") st.resolve(!!result);
+    }
+
+    function mergeDeep(target, source) {
+        if (!isPlainObject(target) || !isPlainObject(source)) return source;
+        for (const [k, v] of Object.entries(source)) {
+            if (isPlainObject(v)) {
+                if (!isPlainObject(target[k])) target[k] = {};
+                mergeDeep(target[k], v);
+            } else if (v instanceof Set) {
+                target[k] = new Set([...v]);
+            } else {
+                target[k] = v;
+            }
+        }
+        return target;
+    }
+
+    function isPlainObject(x) {
+        return x !== null && typeof x === "object" && (x.constructor === Object || Object.getPrototypeOf(x) === Object.prototype);
+    }
+
+    return {
+        patch,
+        isPatchedByUs,
+    };
+}
+
 async function batchupdateTabs() {
     let tx = document.querySelectorAll('tr.us-post');
     let tx_selected = [];
@@ -641,6 +1236,12 @@ function getIPinfo(ip) {
     }
 }
 
+function closeUserInfoPopup() {
+    let popups = document.querySelectorAll("div.user_data");
+    if (popups.length != 1) {
+        popups[1].parentNode.removeChild(popups[1]);
+    }
+}
 function addVirtualReply(cur) {//호출벨 벨튀걸린놈 댓글생성용 가짜리플 이거로 차단가능
     if (cur.is_delete == 1 || cur.no == 0) return;
     try {
@@ -753,10 +1354,7 @@ async function user_memo(target_id) {
     if (data == null || data?.length < 1) { return; }
     DCMOD_MEMO[target_id] = data;
     await GM.setValue('memo', DCMOD_MEMO);
-    let udata = document.querySelector('#user_data_lyr');
-    if (udata != null) {
-        udata.parentNode.removeChild(udata);
-    }
+    closeUserInfoPopup();
     process_ubwriter();
 }
 async function user_memo_del(target_id) {
@@ -765,10 +1363,7 @@ async function user_memo_del(target_id) {
         delete DCMOD_MEMO[target_id];
     }
     await GM.setValue('memo', DCMOD_MEMO);
-    let udata = document.querySelector('#user_data_lyr');
-    if (udata != null) {
-        udata.parentNode.removeChild(udata);
-    }
+    closeUserInfoPopup();
     process_ubwriter();
 }
 async function isNobanlist(target_id) {
@@ -789,10 +1384,7 @@ async function toggle_noban_list(target_id) {
         autoban_except_id.add(target_id);
     }
     await GM.setValue('autoban_except_id', Array.from(autoban_except_id));
-    let udata = document.querySelector('#user_data_lyr');
-    if (udata != null) {
-        udata.parentNode.removeChild(udata);
-    }
+    closeUserInfoPopup();
     alert(`${target_id}가 천안문 버튼으로 자동 차단시 ${autoban_except_id.has(target_id)==true?'신규 아이디 패턴에 맞아도 차단되지 않게 되었습니다.':'신규 아이디 패턴에 맞다면 차단되게 되었습니다.'}`);
 }
 function getWriterInfo(node) {
@@ -846,9 +1438,8 @@ function addMenuObserver() {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(async (node) => {
                     if (node.nodeType === Node.TEXT_NODE || node.className.includes('DCMOD_DELETABLE')) return;
-                    if (node.id !== 'user_data_lyr' && node.className !== 'comment_box' && node.className !== 'useradmin_btnbox' && !node.className.includes('listwrap2')) return;
-                    //console.log(node);
-                    if (node.id === 'user_data_lyr') {
+                    if (!node.className.includes('user_data') && node.className !== 'comment_box' && node.className !== 'useradmin_btnbox' && !node.className.includes('listwrap2')) return;
+                    if (node.className.includes('user_data')) {
                         //let aTag = node.querySelectorAll('a');
                         let target_id = undefined;
                         let isLogined = null;
@@ -942,10 +1533,7 @@ function addMenuObserver() {
                             codecopy.setAttribute('style', 'font-size: 12px;');
                             codecopy.onclick = function() {
                                 copystring(target_id);
-                                let udata = document.querySelector('#user_data_lyr');
-                                if (udata != null) {
-                                    udata.parentNode.removeChild(udata);
-                                }
+                                closeUserInfoPopup();
                             };
                             node.querySelector('ul').appendChild(codecopy);
 
@@ -1137,9 +1725,9 @@ async function process_ubwriter(nodel, noGmemo) {
                 if (ins_target != null) {
                     let aTag = ins_target.querySelector('a');
                     wid.textContent = truncateString(memo_finalstr, 24);//글작성자 크기좀넓음
-                    ins_target.insertBefore(wid, aTag.nextSibling);
+                    aTag.appendChild(wid);//insertBefore(wid, aTag.nextSibling);
                 } else {
-                    cur.appendChild(wid);//위치 잘못된거 아님
+                    cur.querySelector('a').appendChild(wid);//위치 잘못된거 아님
                 }
                 let wid2 = document.createElement('span');//툴팁
                 wid2.innerHTML = tooltipspliter(uid);
@@ -1148,7 +1736,7 @@ async function process_ubwriter(nodel, noGmemo) {
                     wid2.innerHTML += `<br /><x style="color: rgb(255, 144, 0);">⚠️[${curMemo[2]}] 갤러리에서 영구 차단됨⚠️<br />자세한 내용은 해당 갤러리의 갱차목록을 확인해 주세요.</x>`;
                 }
                 wid2.setAttribute('class', 'DCMOD_DELETABLE tooltip-text');
-                cur.appendChild(wid2);
+                cur.querySelector('a').appendChild(wid2);
                 if (curMemo[2].length != 0 ) {
                     let size = wid2.getBoundingClientRect();
                     if (size.width < 260) {
@@ -2541,7 +3129,8 @@ function openSettingsPopup(elem) {
     let setting13 = makeSettingLine(popupDiv, '자동갱차사용', true, true, 'useAutoPermaban');
     let setting14 = makeSettingLine(popupDiv, '작성자정보표시안함', true, true, 'disableWriterInfo');
     let setting16 = makeSettingLine(popupDiv, '글로벌메모사용', true, true, 'useGlobalMemo');
-    let setting17 = makeSettingLine(popupDiv, '이미지출처표시', true, false, 'useImgIDDecryptor');
+    let setting17 = makeSettingLine(popupDiv, '이미지출처표시', true, true, 'useImgIDDecryptor');
+    let setting18 = makeSettingLine(popupDiv, '링크주소검증', true, false, 'useLinkChecker');
 
     const yn_div = document.createElement('div');
     yn_div.setAttribute('class','DCMOD_YN_DIV');
@@ -2584,6 +3173,7 @@ function openSettingsPopup(elem) {
             return;
         }
         let setting_useImgIDDecryptor = setting17[1].innerHTML == 'YES' ? true : false;
+        let setting_useLinkChecker = setting18[1].innerHTML == 'YES' ? true : false;
         if (BAN_VALID_TIMES.includes(Number(setting_rBanHour)) == false) {
             setting_rBanHour = NaN;
         }
@@ -2611,6 +3201,7 @@ function openSettingsPopup(elem) {
             SETTING_VAR["popupIpBan"] = setting_popupIpBan;
             SETTING_VAR["useGlobalMemo"] = setting_useGlobalMemo;
             SETTING_VAR["useImgIDDecryptor"] = setting_useImgIDDecryptor;
+            SETTING_VAR["useLinkChecker"] = setting_useLinkChecker;
             await GM.setValue('SETTING', SETTING_VAR);
             closeSettingsPopup();
             process_ubwriter();
@@ -3317,22 +3908,22 @@ async function getImageData(cspan) {//not image only
 }
 let ipban_safety_stack = 0;
 function articleAndReplyBulkDeletor() {
-	var nNRCount = 0;
-	var nCount = 0;
+    var nNRCount = 0;
+    var nCount = 0;
     var chk = $('input[name="chk_article[]"]:checked');
     var allVals = Array();
 
     chk.each(function() {
-    	var no = $(this).closest('tr').attr('data-no');
-    	var data_type = $(this).closest('tr').attr('data-type');
-    	if(data_type == 'icon_notice' || data_type == 'icon_recomimg') nNRCount++;
-    	else nCount++;
-    	allVals.push(no);
+        var no = $(this).closest('tr').attr('data-no');
+        var data_type = $(this).closest('tr').attr('data-type');
+        if(data_type == 'icon_notice' || data_type == 'icon_recomimg') nNRCount++;
+        else nCount++;
+        allVals.push(no);
     });
 
     if(nNRCount > 1 || (nNRCount >= 1 && nCount > 0)) {
-    	alert('개념글 또는 공지가 포함된 경우 1개씩만 삭제가 가능합니다.');
-    	return;
+        alert('개념글 또는 공지가 포함된 경우 1개씩만 삭제가 가능합니다.');
+        return;
     }
 
     var chk2 = $('input[name="chk_comment[]"]:checked');
@@ -3589,8 +4180,8 @@ function PCSDeleteAlert(targetElem) {
     };
     const message = document.createElement('p');
     message.textContent = `댓글이 아니라 호출벨/신문고 게시글 자체를 삭제하려 하고 있습니다.`;
-	const message2 = document.createElement('p');
-	message2.textContent = `실수가 아니라면 아래에 '확인했습니다'를 입력해주세요.`;
+    const message2 = document.createElement('p');
+    message2.textContent = `실수가 아니라면 아래에 '확인했습니다'를 입력해주세요.`;
     const inputField = document.createElement('input');
     inputField.type = 'text';
     inputField.id = 'DCMOD_popup-userInput';
@@ -3607,7 +4198,7 @@ function PCSDeleteAlert(targetElem) {
     };
     popupBox.appendChild(closeButton);
     popupBox.appendChild(message);
-	popupBox.appendChild(message2);
+    popupBox.appendChild(message2);
     popupBox.appendChild(document.createElement('br'));
     popupBox.appendChild(inputField);
     popupBox.appendChild(confirmButton);
@@ -4461,11 +5052,11 @@ function escapeHTML(text, maxLen) {
     //console.log(text);
     if (typeof(text) != 'string') return text;
     let rval = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
     if (maxLen != null && rval.length > maxLen) {
         return rval.substr(0, maxLen)+'...';
     } else {
@@ -4587,8 +5178,8 @@ async function gall_encrypt_aes(targetstring, writeLog) {
             return {result:false, msg:'현재 갤러리의 키를 관리하는 유저 ID가 확인되지 않습니다.'};
         } else if (GALL_SECRET_KEYS[GALL_KEY_USER_ID[gallid]] == null){
             return {resdult:false, msg:`해당 갤러리의 키 관리자(${GALL_KEY_USER_ID[gallid]})에게 발급받은 암호화 키가 존재하지 않습니다.\n`+
-                  '본인의 갤로그에 자신의 RSA 암호화 키를 작성했는지와 AES 암호화 키를 지급받았는지 확인해주세요.\n\n'+
-                  '[본인의 갤로그 -> 방명록] 에서 한번 확인하면 자동으로 입력됩니다.'};
+                    '본인의 갤로그에 자신의 RSA 암호화 키를 작성했는지와 AES 암호화 키를 지급받았는지 확인해주세요.\n\n'+
+                    '[본인의 갤로그 -> 방명록] 에서 한번 확인하면 자동으로 입력됩니다.'};
         }
     }
 }
@@ -4941,11 +5532,11 @@ async function copypostcont() {
 }
 
 function textTrim(node) {
-	try {
-		return node.textContent.trim();
-	} catch(e) {
-		return '';
-	}
+    try {
+        return node.textContent.trim();
+    } catch(e) {
+        return '';
+    }
 }
 function timestrtoDate(dateString) {//banlist
     try {
@@ -5029,35 +5620,35 @@ function formatDateToString(date) {
     }
 }
 function banItemParser(trNode) {
-	let retNode = {
-		node: trNode,
-		itemNo: null,//차단번호
-		nickname: null,//닉네임
-		code: null,//식별코드 또는 IP
-		itemType: null,//댓글인지 게시글인지
-		itemData: null,//댓글/게시글 내용
-		reason: null,//차단사유
-		bantime: null,//차단기간
-		bandate: null,//처리일(xxxx.xx.xx xx:xx:xx)
-		admin: null,//닉네임(식별코드) 형식 원래뜨는그대로
-		banstate: null,//차단상태, true 차단중 false 차단해제
+    let retNode = {
+        node: trNode,
+        itemNo: null,//차단번호
+        nickname: null,//닉네임
+        code: null,//식별코드 또는 IP
+        itemType: null,//댓글인지 게시글인지
+        itemData: null,//댓글/게시글 내용
+        reason: null,//차단사유
+        bantime: null,//차단기간
+        bandate: null,//처리일(xxxx.xx.xx xx:xx:xx)
+        admin: null,//닉네임(식별코드) 형식 원래뜨는그대로
+        banstate: null,//차단상태, true 차단중 false 차단해제
         unbandate: null,//차단해제일, 처리일이랑 같은형식 bantime보고 계산함
         ipunbanned: null,//ip차단 해제여부(댓글 버거지 검사함수에서 사용)
         unblock_fn: null,//차단 해제 버튼 클릭시 실행되는 함수(onclick)
         link: null//게시글 링크
-	};
-	retNode.itemNo = textTrim(trNode.querySelector('td.blocknum'));
-	let nickAndCode = Array.from(trNode.querySelectorAll('td.blocknik p')).filter(item => item.textContent.trim().length > 0);
-	retNode.nickname = textTrim(nickAndCode[0]);
-	retNode.code = textTrim(nickAndCode[1]);
-	retNode.itemType = textTrim(trNode.querySelector('td.blockcontent span em'));
-	retNode.itemData = textTrim(trNode.querySelector('td.blockcontent span a'));
-	retNode.reason = textTrim(trNode.querySelector('td.blockreason'));
-	retNode.bantime = textTrim(trNode.querySelector('td.blocktime'));
-	let blockday = trNode.querySelector('td.blockday');
-	retNode.bandate = textTrim(blockday.querySelector('span.block_date')) + ' ' + textTrim(blockday.querySelector('p.block_time')).split(' : ')[1];
-	retNode.admin = textTrim(blockday.querySelector('p.block_conduct')).split(' : ')[1];
-	retNode.banstate = textTrim(trNode.querySelector('td.blockstate')) != '해제됨';
+    };
+    retNode.itemNo = textTrim(trNode.querySelector('td.blocknum'));
+    let nickAndCode = Array.from(trNode.querySelectorAll('td.blocknik p')).filter(item => item.textContent.trim().length > 0);
+    retNode.nickname = textTrim(nickAndCode[0]);
+    retNode.code = textTrim(nickAndCode[1]);
+    retNode.itemType = textTrim(trNode.querySelector('td.blockcontent span em'));
+    retNode.itemData = textTrim(trNode.querySelector('td.blockcontent span a'));
+    retNode.reason = textTrim(trNode.querySelector('td.blockreason'));
+    retNode.bantime = textTrim(trNode.querySelector('td.blocktime'));
+    let blockday = trNode.querySelector('td.blockday');
+    retNode.bandate = textTrim(blockday.querySelector('span.block_date')) + ' ' + textTrim(blockday.querySelector('p.block_time')).split(' : ')[1];
+    retNode.admin = textTrim(blockday.querySelector('p.block_conduct')).split(' : ')[1];
+    retNode.banstate = textTrim(trNode.querySelector('td.blockstate')) != '해제됨';
     let bantime_start = timestrtoDate(retNode.bandate);
     let ban_period = 0;
     if (retNode.bantime.includes('일')) {
@@ -5073,7 +5664,7 @@ function banItemParser(trNode) {
     let link_node = trNode.querySelector('td.blockcontent span a');
     retNode.link = (link_node != null) ? link_node.href : null;
     console.log(retNode);
-	return retNode;
+    return retNode;
 }
 let banlist_parser_on = false;
 let BANLIST_USE_CACHE_FLAG = false;
@@ -5259,11 +5850,11 @@ async function banlist_parser() {
         await GM.deleteValue('BANLIST_CACHE');
     }
     if (BANLIST_CACHE != null && BANLIST_CACHE.gall == getGallid() && confirm('캐시된 데이터가 있습니다.\n'+
-                                         '저장된 이전 데이터로 검색하시겠습니까?\n\n'+
-                                         'IP 중복으로 인한 IP차단 자동해제여부가 표시되지 않으며\n'+
-                                         '마지막으로 저장된 데이터를 표시하기에\n'+
-                                         '실제로 차단이 해제되었더라도 다시 검색하면 차단중으로 표시됩니다.\n\n'+
-                                        `${BANLIST_CACHE.gall} 갤러리\n${BANLIST_CACHE.time} 데이터`)) {
+                                                                              '저장된 이전 데이터로 검색하시겠습니까?\n\n'+
+                                                                              'IP 중복으로 인한 IP차단 자동해제여부가 표시되지 않으며\n'+
+                                                                              '마지막으로 저장된 데이터를 표시하기에\n'+
+                                                                              '실제로 차단이 해제되었더라도 다시 검색하면 차단중으로 표시됩니다.\n\n'+
+                                                                              `${BANLIST_CACHE.gall} 갤러리\n${BANLIST_CACHE.time} 데이터`)) {
         MNG_BAN_LIST = await loadRetNodes();
         BANLIST_USE_CACHE_FLAG = true;
         document.querySelector('#DCMOD_READ_BANLIST').textContent = '검색';
@@ -5967,11 +6558,11 @@ async function CHECK_REPLY_IP() {
     });
     if (prompt('해당 기능은 차단시 IP 일치여부만을 확인하므로\n'+
                '통피 겹침, 회사/학교IP등 겹침으로 인해 동일인으로 인식될 수 있음에 주의하세요.\n\n'+
-              `실행시 매니저 장기간 차단 가능 횟수 ${replylist.length}회가 사용되며(일일 총 60회, 00시 리셋)\n`+
-              '해당 기능으로 인해 당일 장기간 차단(1일~30일)이 불가능해질 수 있음을 확인 바랍니다\n'+
-              '확인했다면 ㅇㅇ 를 입력해 진행해주세요') != 'ㅇㅇ') return;
+               `실행시 매니저 장기간 차단 가능 횟수 ${replylist.length}회가 사용되며(일일 총 60회, 00시 리셋)\n`+
+               '해당 기능으로 인해 당일 장기간 차단(1일~30일)이 불가능해질 수 있음을 확인 바랍니다\n'+
+               '확인했다면 ㅇㅇ 를 입력해 진행해주세요') != 'ㅇㅇ') return;
     replylist.forEach(item => {
-       item[0].setAttribute('style', 'background-color:#b5b5b5;');
+        item[0].setAttribute('style', 'background-color:#b5b5b5;');
     });
     const logFunc = function(logstr) {
         try {
@@ -6737,7 +7328,7 @@ async function imgIDdecryptor() {
         let current_gall_str_type = [current_gall, current_gall.substr(0,16), `mi$${current_gall}`.substr(0,16)];
         if (origin_str == null || origin_str[0] == current_gall_str_type[0] || origin_str[0] == current_gall_str_type[2] ||
             current_gall_str_type[1].length == 16 && origin_str[0].startsWith(current_gall_str_type[1]) ||
-           current_gall_str_type[2].length == 16 && origin_str[0].startsWith(current_gall_str_type[2])) continue;
+            current_gall_str_type[2].length == 16 && origin_str[0].startsWith(current_gall_str_type[2])) continue;
         let spn = document.createElement('div');
         spn.textContent = `(${String(i+1)}번-${origin_str[1]})${origin_str[0]}`;
         logDiv.appendChild(spn);
@@ -7053,7 +7644,7 @@ if (urlMatch('/board/lists')) {
     }
     //순회검사, 본문백업
     let sp_append_target = document.querySelector('#container div.fr.gall_issuebox');
-        //document.querySelector('div.gallview_head div.gall_writer div.fr');
+    //document.querySelector('div.gallview_head div.gall_writer div.fr');
     if (sp_append_target != null) {
         //makebutton(btntext, btnid, btnclass, btnfunc, appendtarget, stylestr) {
         let sp1 = makebutton('순회검사', 'DCMOD_CHECKPOST', null, checkduppost, undefined, null);
